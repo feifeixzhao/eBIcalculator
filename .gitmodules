@@ -1,0 +1,3 @@
+[submodule "Rivgraph"]
+	path = Rivgraph
+	url = https://github.com/VeinsOfTheEarth/RivGraph
