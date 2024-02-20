@@ -237,3 +237,5 @@ return coords, pix_width
 
 River.centerline = gu.xy_to_coords(coords[:,0], coords[:,1], River.gt)
 River.to_geovectors('centerline', ftype='json')
+River.compute_mesh(buf_halfwidth=5000, smoothing=0.5, grid_spacing=1000)
+River.to_geovectors('mesh', ftype='json')

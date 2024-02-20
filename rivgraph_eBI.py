@@ -10,13 +10,7 @@ import csv
 import geopandas as gpd
 import numpy as np
 from shapely.geometry import LineString, Polygon
-
-# Function to compute mesh for a given mask and save meshlines - this only needs to be done once per river
-def compute_mesh_and_save(mask_path, name, results_folder):
-    River = river(name, mask_path, results_folder, exit_sides='WE', verbose=True)
-    River.compute_mesh(buf_halfwidth=5000, smoothing=0.5, grid_spacing=500)
-    River.to_geovectors('centerline', ftype='json')
-    River.to_geovectors('mesh', ftype='json')
+import cv2
 
 # Function to compute links for a given mask and save them in date-based subfolders
 def compute_links_and_save(mask_path, name, parent_results_folder):
@@ -29,14 +23,14 @@ def compute_links_and_save(mask_path, name, parent_results_folder):
     os.makedirs(mask_links_folder, exist_ok=True)
 
     # Initialize river object
-    River = river(name, mask_path, mask_links_folder, exit_sides='WE', verbose=True)
+    River = river(name, mask_path, mask_links_folder, exit_sides, verbose=True)
     
     # Fill small holes in the mask
     River.Imask = iu.fill_holes(River.Imask, maxholesize=5)
 
     # Compute network, prune, and compute link width and length
     River.compute_network()
-    River.prune_network()
+    # River.prune_network()
     River.compute_link_width_and_length()
 
     # Save links for the current mask
@@ -50,19 +44,14 @@ def calculate_eBI(meshlines, links):
     return eBI_array
 
 # Folder containing masks
-mask_folder = '/Users/Feifei/GEE_watermasks-master/ebi/Ob_Phominskoje/output/mask/'
+mask_folder = r"C:\Users\Feifei\PHD\Landsat_watermasks\ebi_results\Solimoes_Tabatinga\output\Solimoes_Tabatinga\mask"
 
 # Results will be saved with this name
-name = 'Ob'
+name = 'Solimoes'
+exit_sides ='NS'
 
 # Parent folder to organize results based on the date
-results_folder = '/Users/Feifei/GEE_watermasks-master/ebi/Ob_Phominskoje/rivgraph/'
-
-# Define the path to the first image (or whatever image you want to find mesh)
-first_mask_path = os.path.join(mask_folder, 'Ob_2017_05-01_09-01_mask.tif')
-
-# Compute mesh for the first mask and save meshlines 
-compute_mesh_and_save(first_mask_path, name, results_folder)
+results_folder = r"C:\Users\Feifei\PHD\Landsat_watermasks\ebi_results\Solimoes_Tabatinga\rivgraph"
 
 # Get the paths to meshlines and links for the first mask
 meshlines_path = os.path.join(results_folder, f'{name}_meshlines.json')
@@ -71,13 +60,20 @@ meshlines_path = os.path.join(results_folder, f'{name}_meshlines.json')
 csv_filename = 'eBI_results.csv'
 csv_filepath = os.path.join(results_folder, csv_filename)
 
-
 # Loop through all masks in the folder
 for mask_file in os.listdir(mask_folder):
     if mask_file.endswith('.tif'):
         mask_path = os.path.join(mask_folder, mask_file)
 
-         # Get the paths to meshlines and links for the current mask
+        # Use OpenCV to read the image
+        mask_array = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED)
+
+        # Check if the mask is blank (all pixel values are zero)
+        if np.all(mask_array == 0):
+            print(f"Skipping blank mask: {mask_file}")
+            continue
+
+        # Get the paths to meshlines and links for the current mask
         date_numbers = [char for char in mask_path if char.isdigit()]
         date_folder = ''.join(date_numbers)
         meshlines_path = os.path.join(results_folder, f'{name}_meshlines.json')
@@ -88,7 +84,7 @@ for mask_file in os.listdir(mask_folder):
         # Compute links for the current mask and save them in a date-based subfolder
         compute_links_and_save(mask_path, name, results_folder)
 
-            # Calculate eBI_array for the current mask
+        # Calculate eBI_array for the current mask
         eBI_array = calculate_eBI(meshlines_path, links_path)
 
         # Append the results to the CSV file
@@ -96,6 +92,3 @@ for mask_file in os.listdir(mask_folder):
             csvwriter = csv.writer(csvfile)
             csvwriter.writerow([mask_file, *eBI_array])
 
-centerline_pix, valley_centerline_widths = ru.mask_to_centerline(Brahm.Imask, Brahm.exit_sides)
-self.max_valley_width_pixels = np.max(valley_centerline_widths)
-self.centerline = gu.xy_to_coords(centerline_pix[:,0], centerline_pix[:,1], self.gt)
