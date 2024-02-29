@@ -15,8 +15,8 @@ import cv2
 # Function to compute links for a given mask and save them in date-based subfolders
 def compute_links_and_save(mask_path, name, parent_results_folder):
     # Extract date (or numbers) from the mask name
-    date_numbers = [char for char in mask_path if char.isdigit()]
-    date_folder = ''.join(date_numbers)
+    date_numbers = ''.join([char for char in mask_path if char.isdigit()])
+    date_folder = date_folder = ''.join(date_numbers)
 
     # Create a folder to save links for each mask based on the date
     mask_links_folder = os.path.join(parent_results_folder, date_folder, f'links_{name}')
@@ -43,15 +43,25 @@ def calculate_eBI(meshlines, links):
     eBI_array = eBI_array[eBI_array != 0]
     return eBI_array
 
+# Function to extract river name, year, and month-dates from the mask file name
+def extract_info_from_mask_file(mask_file):
+    parts = os.path.splitext(mask_file)[0].split('_')
+    river_name = '_'.join(parts[:-4]) 
+    year_index = ''.join(filter(str.isdigit, mask_file)).find(parts[-4][:4])
+    year = ''.join(filter(str.isdigit, mask_file))[:4]  # Extract the first four numeric characters as year
+    month_dates = ''.join(filter(str.isdigit, mask_file))[4:]  # Extract all numeric characters after the year
+    month_dates_with_underscores = '_'.join(month_dates[i:i+2] for i in range(0, len(month_dates), 2))
+    return river_name, year, month_dates_with_underscores
+
 # Folder containing masks
-mask_folder = r"C:\Users\Feifei\PHD\Landsat_watermasks\ebi_results\Solimoes_Tabatinga\output\Solimoes_Tabatinga\mask"
+mask_folder = r"C:\Users\Feifei\PHD\Landsat_watermasks\ebi_results\Ganges_Paksey\output\Ganges_Paksey\mask"
 
 # Results will be saved with this name
-name = 'Solimoes'
-exit_sides ='NS'
+name = 'Ganges'
+exit_sides ='EW'
 
 # Parent folder to organize results based on the date
-results_folder = r"C:\Users\Feifei\PHD\Landsat_watermasks\ebi_results\Solimoes_Tabatinga\rivgraph"
+results_folder = r"C:\Users\Feifei\PHD\Landsat_watermasks\ebi_results\Ganges_Paksey\rivgraph"
 
 # Get the paths to meshlines and links for the first mask
 meshlines_path = os.path.join(results_folder, f'{name}_meshlines.json')
@@ -84,11 +94,24 @@ for mask_file in os.listdir(mask_folder):
         # Compute links for the current mask and save them in a date-based subfolder
         compute_links_and_save(mask_path, name, results_folder)
 
+        # Extract river name, year, and month-dates from the mask file name
+        river_name, year, month_dates = extract_info_from_mask_file(mask_file)
+
+
         # Calculate eBI_array for the current mask
         eBI_array = calculate_eBI(meshlines_path, links_path)
 
-        # Append the results to the CSV file
         with open(csv_filepath, 'a', newline='') as csvfile:
             csvwriter = csv.writer(csvfile)
-            csvwriter.writerow([mask_file, *eBI_array])
+            if os.path.getsize(csv_filepath) == 0:
+                csvwriter.writerow(['River', 'Year', 'Month_range', 'eBI', 'Cross_section'])
+            for i, val in enumerate(eBI_array):
+                csvwriter.writerow([river_name, year, month_dates, val, 1+i])
+
+
+
+
+
+
+
 
