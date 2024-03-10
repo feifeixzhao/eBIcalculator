@@ -54,14 +54,14 @@ def extract_info_from_mask_file(mask_file):
     return river_name, year, month_dates_with_underscores
 
 # Folder containing masks
-mask_folder = r"C:\Users\Feifei\PHD\Landsat_watermasks\ebi_results\Ganges_Paksey\output\Ganges_Paksey\mask"
+mask_folder = r"C:\Users\Feifei\PHD\Landsat_watermasks\ebi_results\Yukon_NearStevensVillage\output\Yukon_NearStevensVillage\mask"
 
 # Results will be saved with this name
-name = 'Ganges'
+name = 'Yukon'
 exit_sides ='EW'
 
 # Parent folder to organize results based on the date
-results_folder = r"C:\Users\Feifei\PHD\Landsat_watermasks\ebi_results\Ganges_Paksey\rivgraph"
+results_folder = r"C:\Users\Feifei\PHD\Landsat_watermasks\ebi_results\Yukon_NearStevensVillage\rivgraph"
 
 # Get the paths to meshlines and links for the first mask
 meshlines_path = os.path.join(results_folder, f'{name}_meshlines.json')
