@@ -35,13 +35,16 @@ def compute_links_and_save(mask_path, name, parent_results_folder):
 
     # Save links for the current mask
     River.to_geovectors('network', ftype='json')  
+    return mask_links_folder
 
 # Function to calculate eBI_array for a given mask using saved meshlines and links
 def calculate_eBI(meshlines, links):
     [eBI, BI] = ru.compute_eBI(meshlines, links, method='local')
     eBI_array = np.array([eBI])
     eBI_array = eBI_array[eBI_array != 0]
-    return eBI_array
+    BI_array = np.array([BI])
+    BI_array = BI_array[BI_array != 0]
+    return eBI_array, BI_array
 
 # Function to extract river name, year, and month-dates from the mask file name
 def extract_info_from_mask_file(mask_file):
@@ -54,21 +57,31 @@ def extract_info_from_mask_file(mask_file):
     return river_name, year, month_dates_with_underscores
 
 # Folder containing masks
-mask_folder = r"C:\Users\Feifei\PHD\Landsat_watermasks\ebi_results\Yukon_NearStevensVillage\output\Yukon_NearStevensVillage\mask"
+mask_folder = r"C:\Users\Feifei\PHD\Landsat_watermasks\ebi_results\Irrawaddy_Katha\output\Irrawaddy_Katha\mask"
 
 # Results will be saved with this name
-name = 'Yukon'
+name = 'Irrawaddy'
 exit_sides ='EW'
 
 # Parent folder to organize results based on the date
-results_folder = r"C:\Users\Feifei\PHD\Landsat_watermasks\ebi_results\Yukon_NearStevensVillage\rivgraph"
+results_folder = r"C:\Users\Feifei\PHD\Landsat_watermasks\ebi_results\Irrawaddy_Katha\rivgraph"
 
 # Get the paths to meshlines and links for the first mask
 meshlines_path = os.path.join(results_folder, f'{name}_meshlines.json')
 
-# Create a CSV file to store eBI_array for each mask
+# Create a CSV files
 csv_filename = 'eBI_results.csv'
 csv_filepath = os.path.join(results_folder, csv_filename)
+
+bi_csv_filename = 'BI_results.csv'
+bi_csv_filepath = os.path.join(results_folder, bi_csv_filename)
+
+# Check if the eBI results CSV file exists and remove it if it does
+if os.path.exists(csv_filepath):
+    os.remove(csv_filepath)
+
+if os.path.exists(bi_csv_filepath):
+    os.remove(bi_csv_filepath)
 
 # Loop through all masks in the folder
 for mask_file in os.listdir(mask_folder):
@@ -94,12 +107,13 @@ for mask_file in os.listdir(mask_folder):
         # Compute links for the current mask and save them in a date-based subfolder
         compute_links_and_save(mask_path, name, results_folder)
 
+
         # Extract river name, year, and month-dates from the mask file name
         river_name, year, month_dates = extract_info_from_mask_file(mask_file)
 
 
         # Calculate eBI_array for the current mask
-        eBI_array = calculate_eBI(meshlines_path, links_path)
+        eBI_array, BI_array = calculate_eBI(meshlines_path, links_path)
 
         with open(csv_filepath, 'a', newline='') as csvfile:
             csvwriter = csv.writer(csvfile)
@@ -107,8 +121,14 @@ for mask_file in os.listdir(mask_folder):
                 csvwriter.writerow(['River', 'Year', 'Month_range', 'eBI', 'Cross_section'])
             for i, val in enumerate(eBI_array):
                 csvwriter.writerow([river_name, year, month_dates, val, 1+i])
+        with open(bi_csv_filepath, 'a', newline='') as csvfile:
+            csvwriter = csv.writer(csvfile)
+            if os.path.getsize(bi_csv_filepath) == 0:
+                csvwriter.writerow(['River', 'Year', 'Month_range', 'BI', 'Cross_section'])
+            for i, val in enumerate(BI_array):
+                csvwriter.writerow([river_name, year, month_dates, val, 1+i])
 
-
+print("eBI and BI are calculated.")
 
 
 
