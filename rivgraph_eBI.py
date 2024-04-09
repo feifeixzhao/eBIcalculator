@@ -11,6 +11,15 @@ import geopandas as gpd
 import numpy as np
 from shapely.geometry import LineString, Polygon
 import cv2
+import argparse
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Compute links and save them for river masks.')
+    parser.add_argument('--river_name', required=True, help='Full name of the river, e.g., Irrawaddy_Katha')
+    parser.add_argument('--exit_sides', required=True, help='Exit sides for the river mask processing, e.g., EW')
+    args = parser.parse_args()
+    return args
 
 # Function to compute links for a given mask and save them in date-based subfolders
 def compute_links_and_save(mask_path, name, parent_results_folder):
@@ -46,25 +55,60 @@ def calculate_eBI(meshlines, links):
     BI_array = BI_array[BI_array != 0]
     return eBI_array, BI_array
 
-# Function to extract river name, year, and month-dates from the mask file name
+# Function to extract river name, year, and month-dates from the mask file name --> For collection 1 Landsat
+# def extract_info_from_mask_file(mask_file):
+#     parts = os.path.splitext(mask_file)[0].split('_')
+#     river_name = '_'.join(parts[:-4]) 
+#     year_index = ''.join(filter(str.isdigit, mask_file)).find(parts[-4][:4])
+#     year = ''.join(filter(str.isdigit, mask_file))[:4]  # Extract the first four numeric characters as year
+#     month_dates = ''.join(filter(str.isdigit, mask_file))[4:]  # Extract all numeric characters after the year
+#     month_dates_with_underscores = '_'.join(month_dates[i:i+2] for i in range(0, len(month_dates), 2))
+#     return river_name, year, month_dates_with_underscores
+
 def extract_info_from_mask_file(mask_file):
     parts = os.path.splitext(mask_file)[0].split('_')
-    river_name = '_'.join(parts[:-4]) 
-    year_index = ''.join(filter(str.isdigit, mask_file)).find(parts[-4][:4])
-    year = ''.join(filter(str.isdigit, mask_file))[:4]  # Extract the first four numeric characters as year
-    month_dates = ''.join(filter(str.isdigit, mask_file))[4:]  # Extract all numeric characters after the year
-    month_dates_with_underscores = '_'.join(month_dates[i:i+2] for i in range(0, len(month_dates), 2))
+    
+    # Extract river name
+    river_name = ''
+    for part in parts:
+        if not part.isdigit():
+            river_name += part + '_'
+        else:
+            break
+    river_name = river_name.rstrip('_')
+
+    # Extract year
+    year = ''
+    for part in parts:
+        if part.isdigit() and len(part) == 4:
+            year = part
+            break
+
+    # Remove the year between month dates
+    month_parts = []
+    for part in parts:
+        if part.isdigit() and len(part) == 2:
+            month_parts.append(part)
+    month_dates_with_underscores = '_'.join(month_parts)
+
     return river_name, year, month_dates_with_underscores
 
-# Folder containing masks
-mask_folder = r"C:\Users\Feifei\PHD\Landsat_watermasks\ebi_results\Irrawaddy_Katha\output\Irrawaddy_Katha\mask"
 
-# Results will be saved with this name
-name = 'Irrawaddy'
-exit_sides ='EW'
 
-# Parent folder to organize results based on the date
-results_folder = r"C:\Users\Feifei\PHD\Landsat_watermasks\ebi_results\Irrawaddy_Katha\rivgraph"
+if __name__ == "__main__":
+    args = parse_args()
+
+    base_dir = r"C:\Users\Feifei\PHD\Landsat_watermasks\ebi_results"
+
+    # Extract 'name' from 'river_name' by taking the part before the first underscore
+    name = args.river_name.split('_')[0]
+
+    # Use the arguments to construct paths
+    river_name = args.river_name
+    exit_sides = args.exit_sides
+
+    mask_folder = os.path.join(base_dir, f"{river_name}\\output\\{river_name}\\mask")
+    results_folder = os.path.join(base_dir, f"{river_name}\\rivgraph")
 
 # Get the paths to meshlines and links for the first mask
 meshlines_path = os.path.join(results_folder, f'{name}_meshlines.json')
