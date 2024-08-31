@@ -36,10 +36,11 @@ def compute_links_and_save(mask_path, name, parent_results_folder):
     
     # Fill small holes in the mask
     River.Imask = iu.fill_holes(River.Imask, maxholesize=5)
+    River.Imask= iu.largest_blobs(River.Imask, nlargest=1, action='keep')
 
     # Compute network, prune, and compute link width and length
     River.compute_network()
-    # River.prune_network()
+    #River.prune_network()
     River.compute_link_width_and_length()
 
     # Save links for the current mask
@@ -48,22 +49,15 @@ def compute_links_and_save(mask_path, name, parent_results_folder):
 
 # Function to calculate eBI_array for a given mask using saved meshlines and links
 def calculate_eBI(meshlines, links):
-    [eBI, BI] = ru.compute_eBI(meshlines, links, method='local')
+    [eBI, BI, wetted_width] = ru.compute_eBI(meshlines, links, method='local')
     eBI_array = np.array([eBI])
     eBI_array = eBI_array[eBI_array != 0]
     BI_array = np.array([BI])
     BI_array = BI_array[BI_array != 0]
-    return eBI_array, BI_array
+    wetted_area = np.array([wetted_width])
+    wetted_area = wetted_area[wetted_area != 0]
+    return eBI_array, BI_array, wetted_area
 
-# Function to extract river name, year, and month-dates from the mask file name --> For collection 1 Landsat
-# def extract_info_from_mask_file(mask_file):
-#     parts = os.path.splitext(mask_file)[0].split('_')
-#     river_name = '_'.join(parts[:-4]) 
-#     year_index = ''.join(filter(str.isdigit, mask_file)).find(parts[-4][:4])
-#     year = ''.join(filter(str.isdigit, mask_file))[:4]  # Extract the first four numeric characters as year
-#     month_dates = ''.join(filter(str.isdigit, mask_file))[4:]  # Extract all numeric characters after the year
-#     month_dates_with_underscores = '_'.join(month_dates[i:i+2] for i in range(0, len(month_dates), 2))
-#     return river_name, year, month_dates_with_underscores
 
 def extract_info_from_mask_file(mask_file):
     parts = os.path.splitext(mask_file)[0].split('_')
@@ -98,7 +92,7 @@ def extract_info_from_mask_file(mask_file):
 if __name__ == "__main__":
     args = parse_args()
 
-    base_dir = r"C:\Users\Feifei\PHD\Landsat_watermasks\ebi_results"
+    base_dir = r"C:\Users\Feifei\Box\BR_remote_sensing\ebi_results"
 
     # Extract 'name' from 'river_name' by taking the part before the first underscore
     name = args.river_name.split('_')[0]
@@ -120,12 +114,18 @@ csv_filepath = os.path.join(results_folder, csv_filename)
 bi_csv_filename = 'BI_results.csv'
 bi_csv_filepath = os.path.join(results_folder, bi_csv_filename)
 
+wetted_width_csv_filename = 'wetted_area.csv'
+wetted_width_csv_filepath = os.path.join(results_folder, wetted_width_csv_filename)
+
 # Check if the eBI results CSV file exists and remove it if it does
 if os.path.exists(csv_filepath):
     os.remove(csv_filepath)
 
 if os.path.exists(bi_csv_filepath):
     os.remove(bi_csv_filepath)
+
+if os.path.exists(wetted_width_csv_filepath):
+    os.remove(wetted_width_csv_filepath)
 
 # Loop through all masks in the folder
 for mask_file in os.listdir(mask_folder):
@@ -157,7 +157,7 @@ for mask_file in os.listdir(mask_folder):
 
 
         # Calculate eBI_array for the current mask
-        eBI_array, BI_array = calculate_eBI(meshlines_path, links_path)
+        eBI_array, BI_array, wetted_area = calculate_eBI(meshlines_path, links_path)
 
         with open(csv_filepath, 'a', newline='') as csvfile:
             csvwriter = csv.writer(csvfile)
@@ -171,11 +171,11 @@ for mask_file in os.listdir(mask_folder):
                 csvwriter.writerow(['River', 'Year', 'Month_range', 'BI', 'Cross_section'])
             for i, val in enumerate(BI_array):
                 csvwriter.writerow([river_name, year, month_dates, val, 1+i])
+        with open(wetted_width_csv_filepath, 'a', newline='') as csvfile:
+            csvwriter = csv.writer(csvfile)
+            if os.path.getsize(wetted_width_csv_filepath) == 0:
+                csvwriter.writerow(['River', 'Year', 'Month_range', 'wetted_width', 'Cross_section'])
+            for i, val in enumerate(wetted_area):
+                csvwriter.writerow([river_name, year, month_dates, val, 1+i])
 
-print("eBI and BI are calculated.")
-
-
-
-
-
-
+print("eBI, BI, and wetted area are calculated.")
