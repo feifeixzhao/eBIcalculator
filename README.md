@@ -10,6 +10,7 @@ preprocess_images.py river_name --crop --scale
 #### Finally, the function rivgraph_eBI.py calculates the eBI statistics for all masks in the folder. The outputs include two .csv files - one with eBI statistics and one with the eBI value for each transect in each mask. To run, river_name is folder name containing all of the channel masks, and exit_sides are the cardinal directions of where the river exits (e.g., east/west, or EW)
 
 ```markdown
-rivgraph_eBI.py --river_name river_name --exit_sides EW
+rivgraph_eBI.py --river_name river_name --exit_sides EW --timescale subannual
+
 ```
 
