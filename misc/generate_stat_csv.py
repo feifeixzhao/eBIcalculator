@@ -359,15 +359,11 @@ Cf  = 0.01       # calibration factor
 # Convert slope to dimensionless
 combined_statistics_df['slope_dimless'] = combined_statistics_df['Slope (cm/km) '] * 1e-5
 
-# Vectorized compute of dim_Q
+# Vectorized compute of Q* (stored in 'dim_Q')
 combined_statistics_df['dim_Q'] = (
-    combined_statistics_df['Qm'] * WDR**1.5
-    / (
-        np.sqrt(g)
-        * (combined_statistics_df['Width(m)'] 
-           * combined_statistics_df['mean_bi_site']**-1)**2.5
-        * np.sqrt(combined_statistics_df['slope_dimless'] / Cf)
-      )
+    (combined_statistics_df['Qm'] * (WDR**1.5) * (combined_statistics_df['mean_bi_site']**1.5)) /
+    (np.sqrt(g) * (combined_statistics_df['Width(m)']**2.5) *
+     np.sqrt(combined_statistics_df['slope_dimless'] / Cf))
 )
 
 # ---- New Section: Merge PIV migration data ----

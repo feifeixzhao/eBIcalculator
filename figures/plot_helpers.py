@@ -8,6 +8,42 @@ import geopandas as gpd
 import cartopy.crs as ccrs
 from matplotlib.lines import Line2D
 from scipy.stats import linregress
+from scipy.optimize import curve_fit
+
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy
+from scipy import stats 
+import pandas as pd
+import geopandas as gpd
+import cartopy.crs as ccrs
+from matplotlib.lines import Line2D
+from scipy.stats import linregress
+from matplotlib.lines import Line2D
+from scipy.stats import linregress
+
+
+def configure_matplotlib(font_size=20, label_size=None, tick_label_size=None,
+                         legend_font_size=None):
+    """Set matplotlib's global style parameters."""
+    if label_size is None:
+        label_size = font_size
+    if tick_label_size is None:
+        tick_label_size = font_size
+    if legend_font_size is None:
+        legend_font_size = font_size
+
+    plt.rcParams['font.size'] = font_size
+    plt.rcParams['axes.labelsize'] = label_size
+    plt.rcParams['xtick.labelsize'] = tick_label_size
+    plt.rcParams['ytick.labelsize'] = tick_label_size
+    plt.rcParams['legend.fontsize'] = legend_font_size
+
+
+def load_combined_statistics(csv_path):
+    """Load the eBI combined statistics CSV."""
+    return pd.read_csv(csv_path)
 
 
 def fit_regression(x, y, mode="log-x", return_r2=False):
@@ -68,10 +104,6 @@ def fit_regression(x, y, mode="log-x", return_r2=False):
         return m, b, predict
 
 
-
-
-
-
 def plot_regression(x, y, predict, ax=None, label="Regression"):
     """
     Plot original data points and the regression line.
@@ -103,6 +135,7 @@ def plot_regression(x, y, predict, ax=None, label="Regression"):
     return ax
 
 
+
 def classify_river(sinuosity, mean_bi):
     if mean_bi >= 3.5:
         return 'B'  # Multichannels
@@ -114,6 +147,84 @@ def classify_river(sinuosity, mean_bi):
     else:
         return 'M'  # Single channel
     
+
+def fit_bounded_power(x, y, y0=1.0, p0=None, return_r2=False):
+    """
+    Fit the model y = y0 - A*x^s for x>0, y<y0.
+    
+    Parameters:
+      x      : array-like, independent variable (must be >0)
+      y      : array-like, dependent variable (should be < y0)
+      y0     : float, the known upper asymptote
+      p0     : tuple (A0, s0), initial guesses for A and s. 
+               If None, defaults to A0=(y0 - y.min()), s0=0.1.
+      return_r2 : bool, if True also return R² in y-space.
+    
+    Returns:
+      if return_r2:
+        A, s, predict_func, r2
+      else:
+        A, s, predict_func
+      where predict_func(xx) gives y0 - A*xx**s
+    """
+    # filter valid data
+    x = np.asarray(x)
+    y = np.asarray(y)
+    mask = (x > 0) & np.isfinite(x) & np.isfinite(y) & (y < y0)
+    x, y = x[mask], y[mask]
+    if p0 is None:
+        A0 = max(1e-6, y0 - np.min(y))
+        s0 = 0.1
+        p0 = (A0, s0)
+
+    # define model with fixed y0
+    def _model(x, A, s):
+        return y0 - A * x**s
+
+    popt, pcov = curve_fit(_model, x, y, p0=p0, maxfev=2000)
+    A_fit, s_fit = popt
+
+    # build predict function
+    predict = lambda xx: y0 - A_fit * np.power(xx, s_fit)
+
+    if return_r2:
+        y_hat = predict(x)
+        ss_res = np.sum((y - y_hat)**2)
+        ss_tot = np.sum((y - y.mean())**2)
+        r2 = 1 - ss_res/ss_tot
+        return A_fit, s_fit, predict, r2
+    else:
+        return A_fit, s_fit, predict
+
+
+def plot_bounded_power(x, y, y0=1.0, ax=None, label=None, **plot_kw):
+    """
+    Fit y = y0 - A*x^s and plot data + fitted curve.
+
+    Parameters:
+      x, y   : array-like data points
+      y0     : float, upper asymptote
+      ax     : matplotlib Axes (created if None)
+      label  : str, label for the fitted curve in legend
+      plot_kw: additional kwargs passed to ax.plot for the fit line
+
+    Returns:
+      ax, and the (A, s, r2) tuple
+    """
+    if ax is None:
+        fig, ax = plt.subplots()
+    # scatter data
+    ax.scatter(x, y, color='C0', label='Data')
+    # fit
+    A, s, predict, r2 = fit_bounded_power(x, y, y0=y0, return_r2=True)
+    # curve
+    x_line = np.logspace(np.log10(x.min()*0.9), np.log10(x.max()*1.1), 200)
+    y_line = predict(x_line)
+    lbl = label or f"$y={y0:.1f}-({A:.2g})x^{{{s:.2f}}},\,R^2={r2:.2f}$"
+    ax.plot(x_line, y_line, label=lbl, **plot_kw)
+    ax.set_xscale('log')
+    ax.legend()
+    return ax, (A, s, r2)
 
 # Helper function to load discharge data based on the Galeazzi file
 def load_discharge_data(river_name):
