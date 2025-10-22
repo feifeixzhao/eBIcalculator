@@ -50,28 +50,33 @@ def fit_regression(x, y, mode="log-x", return_r2=False):
     """
     Fit a regression with optional log-transforms, and always compute R²
     in the space of the fit when return_r2=True.
+
+    Modes:
+      - "linear"  : y = m*x + b
+      - "log-x"   : y = m*log10(x) + b   (semi-log, straight line if x-axis is log)
+      - "log-y"   : log10(y) = m*x + b   (semi-log, straight line if y-axis is log)
+      - "log-log" : log10(y) = m*log10(x) + b  (power law, straight line if both axes are log)
     """
     # filter out non-finite / non-positive
-    mask = (x > 0) & np.isfinite(x) & np.isfinite(y)
+    mask = (x > 0) & (y > 0) & np.isfinite(x) & np.isfinite(y)
     x = x[mask]
     y = y[mask]
 
-    # dispatch fit
     if mode == "linear":
         m, b = np.polyfit(x, y, 1)
         predict = lambda xx: m*xx + b
 
-    elif mode == "log-y":
+    elif mode == "log-x":  # semi-log: y vs log10(x)
+        x_log = np.log10(x)
+        m, b = np.polyfit(x_log, y, 1)
+        predict = lambda xx: m*np.log10(xx) + b
+
+    elif mode == "log-y":  # semi-log: log10(y) vs x
         y_log = np.log10(y)
         m, b = np.polyfit(x, y_log, 1)
         predict = lambda xx: 10**(m*xx + b)
 
-    elif mode == "log-x":
-        x_log = np.log10(x)
-        m, b = np.polyfit(x_log, y, 1, rcond=1e-12)
-        predict = lambda xx: m*np.log10(xx) + b
-
-    elif mode == "log-log":
+    elif mode == "log-log":  # power law
         x_log = np.log10(x)
         y_log = np.log10(y)
         m, b = np.polyfit(x_log, y_log, 1)
@@ -80,28 +85,28 @@ def fit_regression(x, y, mode="log-x", return_r2=False):
     else:
         raise ValueError("mode must be one of 'linear','log-y','log-x','log-log'")
 
-    # now compute R² in the appropriate space
+    # Compute R²
     r2 = None
     if return_r2:
         if mode in ("linear", "log-x"):
             y_hat = predict(x)
             ss_res = ((y - y_hat)**2).sum()
             ss_tot = ((y - y.mean())**2).sum()
-        else:  # log-y or log-log
+        elif mode == "log-y":
             y_log = np.log10(y)
-            if mode == "log-y":
-                yhat_log = m*x + b
-            else:  # log-log
-                yhat_log = m*np.log10(x) + b
+            yhat_log = m*x + b
             ss_res = ((y_log - yhat_log)**2).sum()
             ss_tot = ((y_log - y_log.mean())**2).sum()
-
+        elif mode == "log-log":
+            y_log = np.log10(y)
+            yhat_log = m*np.log10(x) + b
+            ss_res = ((y_log - yhat_log)**2).sum()
+            ss_tot = ((y_log - y_log.mean())**2).sum()
         r2 = 1 - ss_res/ss_tot
 
-    if return_r2:
-        return m, b, predict, r2
-    else:
-        return m, b, predict
+    return (m, b, predict, r2) if return_r2 else (m, b, predict)
+
+
 
 
 def plot_regression(x, y, predict, ax=None, label="Regression"):
